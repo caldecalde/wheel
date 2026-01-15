@@ -1,40 +1,424 @@
 <!DOCTYPE html>
-<html lang="en">
-  <head>
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Spin Wheel App</title>
-    <!-- Google Font -->
-    <link
-      href="https://fonts.googleapis.com/css2?family=Poppins:wght@500;600&display=swap"
-      rel="stylesheet"
-    />
-    <!-- Stylesheet -->
-    <link rel="stylesheet" href="style.css" />
-  </head>
-  <body>
-    <!-- title-->
-    <div class="top">
-      <img src="images/top.png" alt="Description of the image">
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Ruleta de Boda - Kris y Fabio</title>
+    <link href="https://fonts.googleapis.com/css2?family=Cinzel+Decorative:wght@700&family=Montserrat:wght@400;600&display=swap" rel="stylesheet">
+    
+    <style>
+        /* --- COLORES DE LA IMAGEN --- */
+        :root {
+            --crema-fondo: #F9F4EE;
+            --verde-menta: #E2F0E9;
+            --verde-salvia: #C2D6D1;
+            --marron-arena: #C2A988;
+            --texto-oscuro: #4a4a4a;
+        }
+
+        body {
+            font-family: 'Montserrat', sans-serif;
+            background-color: var(--crema-fondo);
+            color: var(--texto-oscuro);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            min-height: 100vh;
+            margin: 0;
+            overflow-x: hidden;
+        }
+
+        h1 {
+            font-family: 'Cinzel Decorative', cursive;
+            color: var(--marron-arena);
+            text-align: center;
+            margin-bottom: 20px;
+            font-size: 2.5rem;
+            padding: 0 10px;
+        }
+
+        .wheel-container {
+            position: relative;
+            width: 90vw;
+            max-width: 500px;
+            aspect-ratio: 1 / 1;
+            margin-bottom: 30px;
+        }
+
+        /* El puntero (triángulo invertido en la parte superior) */
+        .pointer {
+            position: absolute;
+            top: -20px;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 40px;
+            height: 40px;
+            background-color: var(--marron-arena);
+            clip-path: polygon(50% 100%, 0 0, 100% 0);
+            z-index: 10;
+            filter: drop-shadow(0px 4px 4px rgba(0,0,0,0.2));
+        }
+
+        /* SVG de la Ruleta */
+        #wheelSVG {
+            width: 100%;
+            height: 100%;
+            /* Curva de animación personalizada para un frenado realista */
+            transition: transform 4s cubic-bezier(0.2, 0.8, 0.1, 1); 
+            border-radius: 50%;
+            box-shadow: 0 10px 20px rgba(0,0,0,0.1);
+            border: 4px solid var(--marron-arena);
+        }
+
+        .wheel-text {
+            font-size: 13px; /* Un poco más pequeño para que quepan 8 */
+            font-weight: 600;
+            fill: var(--texto-oscuro);
+            text-anchor: middle;
+            dominant-baseline: middle;
+            user-select: none;
+        }
+
+        #spinBtn {
+            background-color: var(--marron-arena);
+            color: var(--crema-fondo);
+            border: none;
+            padding: 15px 40px;
+            font-size: 1.2rem;
+            font-weight: bold;
+            border-radius: 30px;
+            cursor: pointer;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+            transition: transform 0.2s, background-color 0.2s;
+            font-family: 'Montserrat', sans-serif;
+            z-index: 101; 
+            position: relative;
+        }
+
+        #spinBtn:hover {
+            transform: scale(1.05);
+            background-color: #b09776;
+        }
+
+        #spinBtn:disabled {
+            background-color: #ccc;
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        /* --- MODAL (Ventana emergente) --- */
+        #resultModal {
+            position: fixed;
+            top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(0,0,0,0.5);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            opacity: 0;
+            pointer-events: none;
+            transition: opacity 0.3s;
+            z-index: 100;
+        }
+        #resultModal.show {
+            opacity: 1;
+            pointer-events: auto;
+        }
+        .modal-content {
+            background: var(--crema-fondo);
+            padding: 40px;
+            border-radius: 20px;
+            text-align: center;
+            border: 4px solid var(--marron-arena);
+            box-shadow: 0 20px 40px rgba(0,0,0,0.2);
+            transform: scale(0.8);
+            transition: transform 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+            max-width: 80%;
+        }
+        #resultModal.show .modal-content {
+            transform: scale(1);
+        }
+        .modal-title {
+            font-family: 'Cinzel Decorative', cursive;
+            color: var(--marron-arena);
+            font-size: 1.5rem;
+            margin-bottom: 10px;
+        }
+        #resultText {
+            font-size: 1.8rem;
+            color: var(--texto-oscuro);
+            margin: 20px 0;
+            font-weight: bold;
+        }
+        .close-btn {
+            background: var(--verde-salvia);
+            border: none;
+            padding: 10px 25px;
+            border-radius: 15px;
+            cursor: pointer;
+            font-weight: bold;
+            color: var(--texto-oscuro);
+        }
+
+        #particleCanvas {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            pointer-events: none;
+            z-index: 99;
+        }
+    </style>
+</head>
+<body>
+
+    <h1>Kris y Fabio</h1>
+
+    <div class="wheel-container">
+        <div class="pointer"></div>
+        <svg id="wheelSVG" viewBox="0 0 500 500" xmlns="http://www.w3.org/2000/svg">
+            </svg>
     </div>
-    <div class="wrapper">
-      <div class="container">
-        <canvas id="wheel"></canvas>
-        <button id="spin-btn">Gira</button>
-      </div>
-      <div id="final-value">
-        <p>¡Mucha suerte!</p>
-      </div>
-      <div class="footer">
-        <img src="images/foot.png" alt="Grupo Q">
-      </div>
+
+    <button id="spinBtn">¡GIRAR!</button>
+
+    <div id="resultModal">
+        <div class="modal-content">
+            <div class="modal-title">¡La ruleta ha hablado!</div>
+            <div id="resultText">Resultado aquí</div>
+            <button class="close-btn" onclick="closeModal()">Aceptar</button>
+        </div>
     </div>
     
-    <!-- Chart JS -->
-    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/3.9.1/chart.min.js"></script>
-    <!-- Chart JS Plugin for displaying text over chart -->
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/chartjs-plugin-datalabels/2.1.0/chartjs-plugin-datalabels.min.js"></script>
-    <!-- Script -->
-    <script src="script.js"></script>
-  </body>
+    <canvas id="particleCanvas"></canvas>
+
+    <script>
+        // --- 1. CONFIGURACIÓN: LISTA DE 8 OPCIONES ---
+        const options = [
+            "Toma un shot",         // 0
+            "Gira otra vez",        // 1
+            "Manda un shot",        // 2
+            "Foto con desconocido", // 3
+            "Selfie con los esposos",// 4
+            "Manda un shot",        // 5
+            "Haz un brindis",       // 6
+            "Toma un shot"          // 7
+        ];
+        
+        const colors = {
+            mint: '#E2F0E9',
+            sage: '#C2D6D1',
+            sand: '#C2A988',
+            text: '#4a4a4a'
+        };
+
+        const wheelSVG = document.getElementById('wheelSVG');
+        const spinBtn = document.getElementById('spinBtn');
+        const resultModal = document.getElementById('resultModal');
+        const resultText = document.getElementById('resultText');
+        const particleCanvas = document.getElementById('particleCanvas');
+        const ctx = particleCanvas.getContext('2d');
+
+        // Variables de estado
+        let currentRotation = 0;
+        let isSpinning = false;
+        const numSegments = options.length; // Es 8
+        const anglePerSegment = 360 / numSegments; // Es 45 grados
+        const center = 250; 
+        const radius = 250;
+
+        // --- 2. DIBUJAR LA RULETA ---
+        function createWheel() {
+            // Función auxiliar para coordenadas circulares
+            function getCoordinatesForAngle(angle) {
+                const rad = (angle - 90) * (Math.PI / 180);
+                return {
+                    x: center + (radius * Math.cos(rad)),
+                    y: center + (radius * Math.sin(rad))
+                };
+            }
+
+            let pathString = "";
+            let textString = "";
+
+            for (let i = 0; i < numSegments; i++) {
+                const startAngle = i * anglePerSegment;
+                const endAngle = (i + 1) * anglePerSegment;
+                const startCoords = getCoordinatesForAngle(startAngle);
+                const endCoords = getCoordinatesForAngle(endAngle);
+                
+                // Alternar colores de fondo
+                const bgColor = (i % 2 === 0) ? colors.mint : colors.sage;
+
+                // Dibujar el segmento (trozo de pizza)
+                pathString += `<path d="M${center},${center} L${startCoords.x},${startCoords.y} A${radius},${radius} 0 0,1 ${endCoords.x},${endCoords.y} Z" fill="${bgColor}" stroke="${colors.sand}" stroke-width="2"/>`;
+
+                // Calcular posición del texto
+                const textAngle = startAngle + (anglePerSegment / 2);
+                const textRad = (textAngle - 90) * (Math.PI / 180);
+                // Texto al 75% del radio
+                const textX = center + (radius * 0.72 * Math.cos(textRad));
+                const textY = center + (radius * 0.72 * Math.sin(textRad));
+                
+                // Lógica para partir el texto en dos líneas si es muy largo
+                let label = options[i];
+                let fSize = 13;
+                if(label.length > 14) {
+                     const words = label.split(" ");
+                     if(words.length >= 3) {
+                        label = words.slice(0,2).join(" ") + "|"+ words.slice(2).join(" ");
+                     } else {
+                        label = words[0] + "|" + words.slice(1).join(" ");
+                     }
+                     fSize = 12; // Letra un poco más pequeña si es muy largo
+                }
+                const lines = label.split("|");
+                
+                // Elemento de texto SVG rotado
+                let textElement = `<text x="${textX}" y="${textY}" fill="${colors.text}" font-size="${fSize}" font-family="Montserrat" font-weight="600" text-anchor="middle" dominant-baseline="middle" transform="rotate(${textAngle}, ${textX}, ${textY})">`;
+                
+                if(lines.length > 1) {
+                     textElement += `<tspan x="${textX}" dy="-0.6em">${lines[0]}</tspan>`;
+                     textElement += `<tspan x="${textX}" dy="1.2em">${lines[1]}</tspan>`;
+                } else {
+                    textElement += lines[0];
+                }
+                textElement += `</text>`;
+                textString += textElement;
+            }
+            wheelSVG.innerHTML = pathString + textString;
+        }
+
+        createWheel();
+
+        // --- 3. LÓGICA DE GIRO SINCRONIZADA ---
+        spinBtn.addEventListener('click', () => {
+            if (isSpinning) return;
+            spinBtn.disabled = true;
+            isSpinning = true;
+
+            // A. Elegimos el ganador aleatoriamente (0 a 7)
+            const winningIndex = Math.floor(Math.random() * numSegments);
+            
+            // B. Calcular el ángulo central de ese segmento en la ruleta original (sin girar)
+            // Ejemplo: El segmento 0 está entre 0 y 45 grados. Su centro es 22.5 grados.
+            const segmentCenterAngle = (winningIndex * anglePerSegment) + (anglePerSegment / 2);
+
+            // C. Calcular cuánto debemos girar para que ese centro llegue a la posición 0 (arriba)
+            // La ruleta gira en sentido horario. Para llevar un punto X a 0, giramos (360 - X).
+            const targetRotationForZero = 360 - segmentCenterAngle;
+
+            // D. Ajustar con la rotación acumulada actual
+            const currentMod = currentRotation % 360; 
+            let distanceToTarget = targetRotationForZero - currentMod;
+
+            // Si la distancia es negativa, sumamos 360 para asegurar giro horario
+            if (distanceToTarget < 0) {
+                distanceToTarget += 360;
+            }
+
+            // E. Añadir giros extra y un poco de aleatoriedad visual (Jitter)
+            const extraSpins = 5 * 360; // 5 vueltas completas
+            // Jitter: variación aleatoria dentro del segmento para que no caiga siempre en el centro exacto
+            // +/- 40% del ancho del segmento es seguro para no pasarse al vecino
+            const jitter = (Math.random() - 0.5) * (anglePerSegment * 0.8);
+
+            const totalSpin = extraSpins + distanceToTarget + jitter;
+
+            // F. Aplicar rotación
+            currentRotation += totalSpin;
+            wheelSVG.style.transform = `rotate(${currentRotation}deg)`;
+
+            // G. Esperar a que termine la animación (4s) para mostrar el premio
+            setTimeout(() => {
+                isSpinning = false;
+                spinBtn.disabled = false;
+                showResult(winningIndex);
+            }, 4000);
+        });
+
+        // --- 4. MOSTRAR RESULTADO ---
+        function showResult(index) {
+            resultText.innerText = options[index];
+            resultModal.classList.add('show');
+            explodeParticles();
+        }
+
+        function closeModal() {
+            resultModal.classList.remove('show');
+        }
+
+        // --- 5. ANIMACIÓN DE PARTÍCULAS ---
+        let particles = [];
+        particleCanvas.width = window.innerWidth;
+        particleCanvas.height = window.innerHeight;
+
+        window.addEventListener('resize', () => {
+            particleCanvas.width = window.innerWidth;
+            particleCanvas.height = window.innerHeight;
+        });
+
+        function createParticle() {
+            return {
+                x: window.innerWidth / 2,
+                y: window.innerHeight / 2,
+                size: Math.random() * 8 + 4,
+                color: [colors.mint, colors.sage, colors.sand, '#ffffff', '#e8c39e'][Math.floor(Math.random() * 5)],
+                speedX: (Math.random() - 0.5) * 15,
+                speedY: (Math.random() - 0.5) * 15,
+                gravity: 0.1,
+                drag: 0.96,
+                opacity: 1,
+                rotation: Math.random() * 360,
+                rotationSpeed: (Math.random() - 0.5) * 10
+            };
+        }
+
+        function explodeParticles() {
+            particles = [];
+            for (let i = 0; i < 120; i++) {
+                particles.push(createParticle());
+            }
+            animateParticles();
+        }
+
+        function animateParticles() {
+            ctx.clearRect(0, 0, particleCanvas.width, particleCanvas.height);
+            
+            particles.forEach((p, index) => {
+                p.x += p.speedX;
+                p.y += p.speedY;
+                p.speedY += p.gravity;
+                p.speedX *= p.drag;
+                p.speedY *= p.drag;
+                p.rotation += p.rotationSpeed;
+                p.opacity -= 0.01;
+
+                ctx.save();
+                ctx.translate(p.x, p.y);
+                ctx.rotate(p.rotation * Math.PI / 180);
+                ctx.globalAlpha = p.opacity;
+                ctx.fillStyle = p.color;
+                
+                if (index % 2 === 0) {
+                    ctx.beginPath();
+                    ctx.arc(0, 0, p.size, 0, Math.PI * 2);
+                    ctx.fill();
+                } else {
+                    ctx.fillRect(-p.size/2, -p.size/2, p.size, p.size);
+                }
+                ctx.restore();
+            });
+
+            particles = particles.filter(p => p.opacity > 0);
+
+            if (particles.length > 0) {
+                requestAnimationFrame(animateParticles);
+            } else {
+                 ctx.clearRect(0, 0, particleCanvas.width, particleCanvas.height);
+            }
+        }
+    </script>
+</body>
 </html>
